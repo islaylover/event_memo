@@ -25,13 +25,13 @@
     @foreach ($events as $event)
         <div class="bg-white rounded shadow p-4 mb-4">
             <h3 class="text-xl font-bold">{{ $event->name }}</h3>
-            <p class="text-sm text-gray-600">日時: {{ $event->event_date }}</p>
+            <p class="text-sm text-gray-600">日時: {{ $event->eventDate }}</p>
             <p class="text-sm text-gray-600">印象: {{ $event->impression ?? 'なし' }}</p>
 
             <p class="mt-2 font-semibold">通知（分前）:</p>
             <ul class="ml-4 list-disc text-sm">
                 @forelse ($event->alertIntervals as $interval)
-                    <li>{{ $interval->minute_before_event }} 分前</li>
+                    <li>{{ $interval }} 分前</li>
                 @empty
                     <li>なし</li>
                 @endforelse
@@ -40,7 +40,7 @@
             <p class="mt-2 font-semibold">タグ:</p>
             <div class="flex flex-wrap gap-2">
                 @forelse ($event->tags as $tag)
-                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">{{ $tag->name }}</span>
+                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">{{ $tag }}</span>
                 @empty
                     <span class="text-gray-500 text-sm">なし</span>
                 @endforelse
@@ -61,7 +61,7 @@
         </div>
     @endforeach
 
-    @if ($events->isEmpty())
+    @if (empty($events))
         <p class="text-gray-500">登録されたイベントはありません。</p>
     @endif
 

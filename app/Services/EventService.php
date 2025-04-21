@@ -12,49 +12,68 @@ use App\Domain\Repositories\EventRepositoryInterface;
 use App\Domain\Models\AlertInterval\AlertInterval;
 use App\Domain\Models\AlertInterval\AlertIntervalMinuteBeforeEvent;
 use App\Domain\Repositories\AlertIntervalRepositoryInterface;
-use App\Infrastructure\Eloquent\EventEloquent;
-//use App\Http\Traits\CommonFunctions;
+use App\Domain\Repositories\TagRepositoryInterface;
+use App\Infrastructure\Eloquent\AlertIntervalEloquent;
+use App\Domain\Dto\EventEditDto;
+use App\Domain\Dto\AlertNotificationDto;
+use App\Domain\Models\Tag\Tag;
+use App\Domain\Models\Tag\TagUserId;
+use App\Domain\Models\Tag\TagName;
+use App\Domain\Services\TagDomainService;
+use App\Domain\Services\AlertIntervalDomainService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class EventService
 {
     protected $EventRepository;
     protected $AlertIntervalRepository;
+    protected $TagRepository;
 
-    public function __construct(EventRepositoryInterface $EventRepository, AlertIntervalRepositoryInterface $AlertIntervalRepository)
-    {
+    public function __construct(
+        EventRepositoryInterface $EventRepository, 
+        AlertIntervalRepositoryInterface $AlertIntervalRepository,
+        TagRepositoryInterface $TagRepository
+    ) {
         $this->EventRepository = $EventRepository;
         $this->AlertIntervalRepository = $AlertIntervalRepository;
+        $this->TagRepository = $TagRepository;
     }
 
-    public function getAllEvents()
+    public function getAllEventSummaries(EventUserId $eventUserId): array
     {
-        return $this->EventRepository->getAll();
+        return $this->EventRepository->getAllEventSummaries($eventUserId);
     }
 
-    public function getAllEventsWithRelations()
+    public function getEventEditDto($id, $eventUserId): EventEditDto
     {
-        return EventEloquent::with(['tags', 'alertIntervals'])->orderBy('event_date', 'asc')->get();
+        return $this->EventRepository->getEditDtoById(
+            new EventId($id),
+            new EventUserId($eventUserId)
+        );
     }
 
-    public function getEventById(int $id): ?Event
+    public function getAllTags($eventUserId): array
     {
-        return $this->EventRepository->findById(new EventId($id));
+        $TagUserId = new TagUserId($eventUserId);
+        return $this->TagRepository->getAllByUserId($TagUserId);
     }
 
-    public function getEventWithRelations($id)
-    {
-        return EventEloquent::with(['alertIntervals', 'tags'])->findOrFail($id);
-    }
-
-    public function createEvent(array $data)
+    /**
+     * イベント新規作成
+     * 
+     * @param array $data
+     * @throws InvalidArgumentException データが不正な場合（バリデーションエラーなど）
+     * @throws Exception DB保存失敗やその他の予期せぬエラー
+     */
+    public function createEvent(array $data): void
     {
         DB::beginTransaction();
         try {
-            Log::info("EventRepository createEvent step 1 save events");
             $Event = new Event(
                 new EventUserId($data['user_id']),
                 new EventName($data['name']),
@@ -62,7 +81,7 @@ class EventService
                 new EventImpression($data['impression'])
             );
             $eventId = $this->EventRepository->create($Event);
-            Log::info("EventRepository createEvent step 2 save alter_intervals");
+            $data['alert_intervals'] = AlertIntervalDomainService::removeDuplicates($data['alert_intervals']);
             if (!empty($data['alert_intervals'])) {
                 foreach ($data['alert_intervals'] as $eachAlertInterval) {
                     Log::info("-- each alert interval -- ". $eachAlertInterval['minute_before_event']);
@@ -73,23 +92,34 @@ class EventService
                     $this->AlertIntervalRepository->create($AlertInterval);
                 }
             }
-            Log::info("EventRepository createEvent step 3 save tags");
-            if (!empty($data['tag_ids'])) {
-                $this->EventRepository->attachTags($eventId, $data['tag_ids']); // 後述
-            }
+            $this->syncTags(
+                $eventId,
+                $data['tag_ids'] ?? [],
+                $data['new_tag_name'] ?? []
+            );
+            
             DB::commit();
-            return true;
         } catch (Exception $e) {
             DB::rollBack();
             throw $e;
         }
     }
 
-    public function updateEvent(array $data)
+    /**
+     * イベント更新
+     * 
+     * @param array $data
+     * @throws InvalidArgumentException データが不正な場合（バリデーションエラーなど）
+     * @throws Exception DB保存失敗やその他の予期せぬエラー
+     */
+    public function updateEvent(array $data): void
     {
         DB::beginTransaction();
         try {
-            Log::info("EventRepository updateEvent step 1 update events");
+            $existing = $this->EventRepository->findById(new EventId($data['id']));
+            if (!$existing || $existing->getUserId()->getValue() !== Auth::id()) {
+                throw new \Exception("権限がありません");
+            }
             $Event = new Event(
                 new EventUserId($data['user_id']),
                 new EventName($data['name']),
@@ -98,9 +128,10 @@ class EventService
                 new EventId($data['id'])
             );
             $this->EventRepository->update($Event);
+
             $eventId = new EventId($data['id']);
-            Log::info("EventRepository updateEvent step 2 update alter_intervals");
             $this->AlertIntervalRepository->deleteByEventId($eventId);
+            $data['alert_intervals'] = AlertIntervalDomainService::removeDuplicates($data['alert_intervals']);
             if (!empty($data['alert_intervals'])) {
                 foreach ($data['alert_intervals'] as $eachAlertInterval) {
                     $AlertInterval = new AlertInterval(
@@ -111,12 +142,12 @@ class EventService
                     $this->AlertIntervalRepository->create($AlertInterval);
                 }
             }
-            Log::info("EventRepository updateEvent step 3 update tags");
-            if (!empty($data['tag_ids'])) {
-                $this->EventRepository->attachTags($eventId, $data['tag_ids']);
-            }
+            $this->syncTags(
+                $eventId,
+                $data['tag_ids'] ?? [],
+                $data['new_tag_name'] ?? []
+            );
             DB::commit();
-            return true;
         } catch (Exception $e) {
             DB::rollBack();
             throw $e;
@@ -125,6 +156,10 @@ class EventService
 
     public function deleteEvent($id): bool
     {
+        $event = $this->EventRepository->findById(new EventId($id));
+        if (!$event || $event->getUserId()->getValue() !== Auth::id()) {
+            throw new \Exception("削除権限がありません");
+        }
         DB::beginTransaction();
         try {
             $eventId = new EventId($id);
@@ -142,4 +177,47 @@ class EventService
         }
     }
 
+    public function getAlertNotifications(Carbon $now): array
+    {
+        $alerts = $this->AlertIntervalRepository->findAlertsForNotification($now);
+        return $alerts->map(function ($alert) {
+            $event = $alert->event;
+            $user = $event->user;
+            return new AlertNotificationDto(
+                $event->id,
+                $event->name,
+                $event->event_date->format('Y-m-d H:i'),
+                $user->name,
+                $user->email,
+                $alert->minute_before_event,
+                $event->tags->pluck('name')->toArray()
+            );
+        })->all();
+    }
+
+    /**
+     * タグをイベントに関連付け（新規作成 + 既存統合 + 重複排除）
+     */
+    private function syncTags(EventId $eventId, array $tagIds = [], array $newTagNames = []): void
+    {
+        $tagEntities = [];
+        foreach ($newTagNames as $tagName) {
+            $trimmed = trim($tagName);
+            if ($trimmed !== '') {
+                $tagEntities[] = new Tag(new TagUserId(Auth::id()), new TagName($trimmed));
+            }
+        }
+        $tagEntities = TagDomainService::removeDuplicateEntities($tagEntities);
+
+        $persistedTagIds = [];
+        foreach ($tagEntities as $tagEntity) {
+            $persistedTagIds[] = $this->TagRepository->firstOrCreate($tagEntity)->getValue();
+        }
+        $mergedTagIds = array_merge($tagIds, $persistedTagIds);
+        $finalTagIds = TagDomainService::removeDuplicateIds($mergedTagIds);
+
+        if (!empty($finalTagIds)) {
+            $this->EventRepository->attachTags($eventId, $finalTagIds);
+        }
+    }
 }

@@ -9,7 +9,8 @@ use App\Domain\Models\AlertInterval\AlertIntervalMinuteBeforeEvent;
 
 use App\Domain\Repositories\AlertIntervalRepositoryInterface;
 use App\Infrastructure\Eloquent\AlertIntervalEloquent;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
+use Carbon\Carbon;
 
 class EloquentAlertIntervalRepository implements AlertIntervalRepositoryInterface
 {
@@ -48,15 +49,12 @@ class EloquentAlertIntervalRepository implements AlertIntervalRepositoryInterfac
 
     public function update(AlertInterval $AlertInterval): bool
     {
-        Log::info("EloquentAlertIntervalRepository update step1");
         $eloquentAlertInterval = AlertIntervalEloquent::find($AlertInterval->getId()->getValue());
         if (!$eloquentAlertInterval) {
             return false;
         }
-        Log::info("EloquentAlertIntervalRepository update step2");
         $eloquentAlertInterval->event_id            = $AlertInterval->getEventId()->getValue();        
         $eloquentAlertInterval->minute_before_event = $AlertInterval->getAlertIntervalMinuteBeforeEvent()->getValue();
-        Log::info("EloquentAlertIntervalRepository update step2-2");
         return $eloquentAlertInterval->save();
     }
 
@@ -69,4 +67,17 @@ class EloquentAlertIntervalRepository implements AlertIntervalRepositoryInterfac
     {
         return AlertIntervalEloquent::where('event_id', $id->getValue())->delete();
     }
+
+    public function findAlertsForNotification(Carbon $now): Collection
+    {
+        return AlertIntervalEloquent::with('event.user', 'event.tags')
+            ->whereHas('event', function ($query) use ($now) {
+                $query->whereRaw("DATE_SUB(events.event_date, INTERVAL alert_intervals.minute_before_event MINUTE) BETWEEN ? AND ?", [
+                    $now->format('Y-m-d H:i:00'),
+                    $now->copy()->addMinute()->format('Y-m-d H:i:59')
+                ]);
+            })
+            ->get();
+    }
+
 }

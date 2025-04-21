@@ -23,4 +23,5 @@ class AlertIntervalEloquent extends Model
     {
         return $this->belongsTo(EventEloquent::class, 'event_id', 'id');
     }
+    
 }

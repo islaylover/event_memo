@@ -5,7 +5,6 @@ namespace App\Domain\Utility\Validator;
 use InvalidArgumentException;
 use Illuminate\Support\Facades\Validator;
 use Exception;
-use Illuminate\Support\Facades\Log;
 
 class StringValidator
 {
@@ -39,7 +38,6 @@ class StringValidator
             $messages['text.regex'] = "{$label} はひらがなまたはカタカナで入力してください。";
         }
 
-        Log::info("StringValidator error message:". var_export($messages, true));
         $validator = Validator::make(
             ['text' => $text], 
             ['text' => $rules], 
@@ -47,8 +45,6 @@ class StringValidator
         );
     
         if ($validator->fails()) {
-            Log::info("StringValidator error");
-            Log::info(var_export($validator->errors()->first('text'), true));
             throw new InvalidArgumentException($validator->errors()->first('text'));
         }
     

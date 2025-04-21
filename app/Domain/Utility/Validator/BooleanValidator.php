@@ -5,7 +5,6 @@ namespace App\Domain\Utility\Validator;
 use InvalidArgumentException;
 use Illuminate\Support\Facades\Validator;
 use Exception;
-use Illuminate\Support\Facades\Log;
 
 class BooleanValidator
 {
@@ -23,7 +22,6 @@ class BooleanValidator
             ['bool_value' => ['required', 'in:0,1']]
         );
         if ($validator->fails()) {
-            Log::info("Boolean validation error");
             throw new InvalidArgumentException($validator->errors()->first('bool_value'));
         }
 

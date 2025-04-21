@@ -14,6 +14,7 @@ class TagName
 
         $this->name = StringValidator::validate($name, [
             'label' => 'タグ名',
+            'max' => 200
         ]);
     }
 

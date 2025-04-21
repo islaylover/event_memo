@@ -112,7 +112,7 @@
           event_date: this.initialEvent.event_date.slice(0, 16),
           impression: this.initialEvent.impression || '',
           alert_intervals: this.initialEvent.alert_intervals ?? [],
-          tag_ids: this.initialEvent.tags.map(t => t.id),
+          tag_ids: this.initialEvent.tag_ids ?? [],
           new_tag_name: []
         };
       }
@@ -125,7 +125,7 @@
         const dd = String(now.getDate()).padStart(2, '0');
         const hh = String(now.getHours()).padStart(2, '0');
         const min = String(now.getMinutes()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}T${hh}:${min}`; // ← タイムゾーン補正済み
+        return `${yyyy}-${mm}-${dd} ${hh}:${min}`; // ← タイムゾーン補正済み
       },
       addAlertInterval() {
         this.form.alert_intervals.push({ minute_before_event: '' });
@@ -140,12 +140,24 @@
         this.form.new_tag_name.splice(index, 1);
       },
       submitForm() {
+        if (this.form.event_date.includes('T')) {
+          this.form.event_date = this.form.event_date.replace('T', ' ');
+        }
+        // 通知時間の重複を排除
+        /*
+        const seen = new Set();
+        this.form.alert_intervals = this.form.alert_intervals.filter(
+          item => {
+            if (seen.has(item.minute_before_event)) return false;
+            seen.add(item.minute_before_event);
+            return true;
+          }
+        );
+        */
         const url = this.mode === 'edit'
           ? `/events/${this.form.id}`
           : '/events';
-
         const method = this.mode === 'edit' ? 'put' : 'post';
-
         axios[method](url, this.form)
           .then(() => {
             alert('保存しました');

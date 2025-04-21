@@ -12,6 +12,7 @@
     <event-form
         :initial-event='@json($event)'
         :available-tags='@json($tags)'
+        mode="edit"
     ></event-form>
 </div>
 @endsection

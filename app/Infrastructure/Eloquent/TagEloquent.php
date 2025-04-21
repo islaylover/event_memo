@@ -12,7 +12,7 @@ class TagEloquent extends Model
     use HasFactory;
 
     protected $table = 'tags';
-    protected $fillable = ['name'];
+    protected $fillable = ['user_id', 'name'];
 
 
     public function events(): BelongsToMany
@@ -22,6 +22,6 @@ class TagEloquent extends Model
             'event_tag',
             'tag_id',
             'event_id'
-        );
+        )->withTimestamps();
     }
 }

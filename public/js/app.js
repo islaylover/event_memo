@@ -2113,16 +2113,14 @@ __webpack_require__.r(__webpack_exports__);
     console.log("初期イベント:", this.initialEvent);
     console.log("タグ:", this.availableTags);
     if (this.initialEvent) {
-      var _this$initialEvent$al;
+      var _this$initialEvent$al, _this$initialEvent$ta;
       this.form = {
         id: this.initialEvent.id,
         name: this.initialEvent.name,
         event_date: this.initialEvent.event_date.slice(0, 16),
         impression: this.initialEvent.impression || '',
         alert_intervals: (_this$initialEvent$al = this.initialEvent.alert_intervals) !== null && _this$initialEvent$al !== void 0 ? _this$initialEvent$al : [],
-        tag_ids: this.initialEvent.tags.map(function (t) {
-          return t.id;
-        }),
+        tag_ids: (_this$initialEvent$ta = this.initialEvent.tag_ids) !== null && _this$initialEvent$ta !== void 0 ? _this$initialEvent$ta : [],
         new_tag_name: []
       };
     }
@@ -2135,7 +2133,7 @@ __webpack_require__.r(__webpack_exports__);
       var dd = String(now.getDate()).padStart(2, '0');
       var hh = String(now.getHours()).padStart(2, '0');
       var min = String(now.getMinutes()).padStart(2, '0');
-      return "".concat(yyyy, "-").concat(mm, "-").concat(dd, "T").concat(hh, ":").concat(min); // ← タイムゾーン補正済み
+      return "".concat(yyyy, "-").concat(mm, "-").concat(dd, " ").concat(hh, ":").concat(min); // ← タイムゾーン補正済み
     },
     addAlertInterval: function addAlertInterval() {
       this.form.alert_intervals.push({
@@ -2153,6 +2151,20 @@ __webpack_require__.r(__webpack_exports__);
     },
     submitForm: function submitForm() {
       var _this = this;
+      if (this.form.event_date.includes('T')) {
+        this.form.event_date = this.form.event_date.replace('T', ' ');
+      }
+      // 通知時間の重複を排除
+      /*
+      const seen = new Set();
+      this.form.alert_intervals = this.form.alert_intervals.filter(
+        item => {
+          if (seen.has(item.minute_before_event)) return false;
+          seen.add(item.minute_before_event);
+          return true;
+        }
+      );
+      */
       var url = this.mode === 'edit' ? "/events/".concat(this.form.id) : '/events';
       var method = this.mode === 'edit' ? 'put' : 'post';
       axios[method](url, this.form).then(function () {

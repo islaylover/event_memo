@@ -4,7 +4,6 @@ namespace App\Domain\Utility\Validator;
 
 use InvalidArgumentException;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Log;
 
 class DigitValidator
 {
@@ -31,7 +30,6 @@ class DigitValidator
         );
 
         if ($validator->fails()) {
-            Log::info("validateDigits validation error");
             throw new InvalidArgumentException($validator->errors()->first('number'));
         }
 

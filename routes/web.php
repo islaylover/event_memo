@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\Auth\LoginController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,9 +16,14 @@ use App\Http\Controllers\EventController;
 */
 
 Route::get('/', function () {
-    //return view('welcome');
-    return redirect('/login'); // or /events or /dashboard
+    return redirect('/events');
 });
+
+
+Route::get('/login', function () {
+    return view('auth.google_login');
+})->name('login');
+
 
 Route::get('/dashboard', function () {
     return view('dashboard');
@@ -32,5 +38,8 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/events/{id}', [EventController::class, 'update'])->name('events.update');
     Route::delete('/events/{id}', [EventController::class, 'destroy'])->name('events.destroy');
 });
+
+Route::get('/login/google', [LoginController::class, 'redirectToGoogle']);
+Route::get('/login/google/callback', [LoginController::class, 'handleGoogleCallback']);
 
 require __DIR__.'/auth.php';
