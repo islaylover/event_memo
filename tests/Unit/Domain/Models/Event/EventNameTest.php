@@ -30,10 +30,17 @@ class EventNameTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         new EventName('');
     }
-    
-    public function test_200文字を超えると例外を投げる()
+
+    public function test_50文字以内はインスタンス生成できる()
     {
-        $longName = str_repeat('あ', 201);
+        $longName = str_repeat('あ', 50);
+        $this->assertTrue(true);
+        new EventName($longName);
+    }
+
+    public function test_50文字を超えると例外を投げる()
+    {
+        $longName = str_repeat('あ', 51);
         $this->expectException(InvalidArgumentException::class);
         new EventName($longName);
     }

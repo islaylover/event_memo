@@ -31,6 +31,14 @@ class TagNameTest extends TestCase
         new TagName('');
     }
     
+
+    public function test_50文字以内はインスタンス生成できる()
+    {
+        $longName = str_repeat('あ', 50);
+        $this->assertTrue(true);
+        new TagName($longName);
+    }
+
     public function test_200文字を超えると例外を投げる()
     {
         $longName = str_repeat('あ', 201);
