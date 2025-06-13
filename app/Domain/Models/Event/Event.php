@@ -6,28 +6,45 @@ use App\Domain\Models\Event\EventId;
 use App\Domain\Models\Event\EventUserId;
 use App\Domain\Models\Event\EventName;
 use App\Domain\Models\Event\EventDate;
+use App\Domain\Models\Event\EventEndDate;
+use App\Domain\Models\Event\EventMemo;
 use App\Domain\Models\Event\EventImpression;
+use App\Domain\Models\Event\GoogleEventId;
 
 class Event
 {
     private ?EventId $id = null;
-    private EventUserId $user_id;
+    private EventUserId $userId;
     private EventName $name;
-    private EventDate $event_date;
+    private EventDate $eventDate;
+    private EventEndDate $eventEndDate;
+    private EventMemo $memo;
     private EventImpression $impression;
+    private GoogleEventId $googleEventId;
 
     public function __construct(
-        EventUserId $user_id,
+        EventUserId $userId,
         EventName $name,
-        EventDate $event_date, 
+        EventDate $eventDate,
+        EventEndDate $eventEndDate,
+        EventMemo $memo,
         EventImpression $impression,
+        GoogleEventId $googleEventId = null,
         ?EventId $id = null
     ) {
         $this->id      = $id;
-        $this->user_id = $user_id;
+        $this->userId = $userId;
         $this->name    = $name;
-        $this->event_date = $event_date;
+        $this->eventDate = $eventDate;
+        $this->eventEndDate = $eventEndDate;
+        $this->memo = $memo;
         $this->impression = $impression;
+        $this->googleEventId = $googleEventId;
+    }
+
+    public function setId(EventId $id): void
+    {
+        $this->id = $id;
     }
 
     public function getId(): EventId
@@ -37,7 +54,7 @@ class Event
 
     public function getUserId(): EventUserId
     {
-        return $this->user_id;
+        return $this->userId;
     }
 
     public function getEventName(): EventName
@@ -47,12 +64,27 @@ class Event
 
     public function getEventDate(): EventDate
     {
-        return $this->event_date;
+        return $this->eventDate;
+    }
+
+    public function getEventEndDate(): EventEndDate
+    {
+        return $this->eventEndDate;
+    }
+
+    public function getEventMemo(): EventMemo
+    {
+        return $this->memo;
     }
 
     public function getEventImpression(): EventImpression
     {
         return $this->impression;
+    }
+
+    public function getGoogleEventId(): GoogleEventId
+    {
+        return $this->googleEventId;
     }
 
 }

@@ -2,170 +2,332 @@
 
 namespace Tests\Unit\Services;
 
+use Tests\TestCase;
+use Mockery;
 use App\Services\EventService;
 use App\Domain\Models\Event\Event;
 use App\Domain\Models\Event\EventId;
 use App\Domain\Models\Event\EventUserId;
 use App\Domain\Models\Event\EventName;
 use App\Domain\Models\Event\EventDate;
+use App\Domain\Models\Event\EventEndDate;
+use App\Domain\Models\Event\EventMemo;
 use App\Domain\Models\Event\EventImpression;
-
+use App\Domain\Models\Event\GoogleEventId;
+use App\Domain\Models\AlertInterval\AlertInterval;
+use App\Domain\Models\AlertInterval\AlertIntervalMinuteBeforeEvent;
+use App\Domain\Models\Tag\Tag;
+use App\Domain\Models\Tag\TagId;
+use App\Domain\Models\Tag\TagUserId;
+use App\Domain\Models\Tag\TagName;
 use App\Domain\Repositories\EventRepositoryInterface;
 use App\Domain\Repositories\AlertIntervalRepositoryInterface;
 use App\Domain\Repositories\TagRepositoryInterface;
-use App\Infrastructure\Eloquent\EventEloquent;
+use App\Infrastructure\External\GoogleCalendarApiClient;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-use Tests\TestCase;
-use Mockery;
 
 class EventServiceTest extends TestCase
 {
-    private $eventRepo;
-    private $alertRepo;
-    private $tagRepo;
-    private $eventService;
+    protected $eventRepo;
+    protected $alertIntervalRepo;
+    protected $tagRepo;
+    protected $googleApi;
+    protected $eventService;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        //Mockery::close();
         $this->eventRepo = Mockery::mock(EventRepositoryInterface::class);
-        $this->alertRepo = Mockery::mock(AlertIntervalRepositoryInterface::class);
-        $this->tagRepo   = Mockery::mock(TagRepositoryInterface::class);
+        $this->alertIntervalRepo = Mockery::mock(AlertIntervalRepositoryInterface::class);
+        $this->tagRepo = Mockery::mock(TagRepositoryInterface::class);
+        $this->googleApi = Mockery::mock(GoogleCalendarApiClient::class);
 
         Auth::shouldReceive('id')->andReturn(123);
 
         $this->eventService = new EventService(
             $this->eventRepo,
-            $this->alertRepo,
-            $this->tagRepo
+            $this->alertIntervalRepo,
+            $this->tagRepo,
+            $this->googleApi
         );
     }
 
-    public function test_create_event_成功する()
+    public function testCreateEventWithoutGoogleSync()
     {
-        // Arrange: 適当なイベントデータ
+        $this->eventRepo->shouldReceive('create')->once()->andReturn(new EventId(1));
+        $this->alertIntervalRepo->shouldReceive('create')->twice();
+        $this->tagRepo->shouldReceive('firstOrCreate')->andReturn(
+            new TagId(5)
+        );
+        $this->eventRepo->shouldReceive('attachTags')->once();
+
         $data = [
             'user_id' => 1,
             'name' => 'テストイベント',
-            'event_date' => '2025-04-22 12:00',
-            'impression' => 'これはテストです',
-            'alert_intervals' => [['minute_before_event' => 10]],
+            'event_date' => '2025-06-15 10:00',
+            'event_end_date' => '2025-06-15 11:00',
+            'memo' => 'このメンバーの飲み会は危険', 
+            'impression' => 'とても楽しかった',
+            'alert_intervals' => [
+                ['minute_before_event' => 10],
+                ['minute_before_event' => 5]
+            ],
             'tag_ids' => [1, 2],
-            'new_tag_name' => ['テストタグ']
+            'new_tag_name' => ['仕事']
         ];
 
-        DB::shouldReceive('beginTransaction');
-        DB::shouldReceive('commit');
-        DB::shouldReceive('rollBack');
+        $event = $this->eventService->createEvent($data);
 
-        // EventRepository::create が EventId を返すようにモック
-        $this->eventRepo->shouldReceive('create')->once()->andReturnUsing(function () {
-            return new \App\Domain\Models\Event\EventId(999);
-        });
-
-        // AlertIntervalRepository::create 呼ばれることを想定
-        $this->alertRepo->shouldReceive('create')->once();
-
-        // TagRepository::firstOrCreate 呼ばれることを想定
-        $this->tagRepo->shouldReceive('firstOrCreate')->andReturn(
-            new \App\Domain\Models\Tag\TagId(1)
-        );
-
-        // EventRepository::attachTags 呼ばれることを想定
-        $this->eventRepo->shouldReceive('attachTags')->once();
-
-        // Act + Assert（例外が投げられなければ成功）
-        $this->eventService->createEvent($data);
-
-        $this->assertTrue(true);
+        $this->assertInstanceOf(Event::class, $event);
+        $this->assertEquals('テストイベント', $event->getEventName()->getValue());
     }
 
-    public function test_update_event_成功する()
+    public function testUpdateEventWithoutGoogleSync()
     {
-        // Arrange
-        $data = [
-            'id' => 999,
-            'user_id' => 123, // Auth::id() に合わせる
-            'name' => '更新イベント',
-            'event_date' => '2025-04-23 15:00',
-            'impression' => '更新内容です',
-            'alert_intervals' => [['minute_before_event' => 15]],
-            'tag_ids' => [1],
-            'new_tag_name' => ['新しいタグ']
-        ];
-        // 「イベントが存在して、ユーザーIDも一致している」ことを前提とした EventEloquent を事前登録
-        EventEloquent::unguard();
-        $mockEloquent = new \App\Infrastructure\Eloquent\EventEloquent([
-            'id' => 999,
-            'user_id' => 123,
-        ]);
+        Auth::shouldReceive('id')->andReturn(123);
 
-        DB::shouldReceive('beginTransaction');
-        DB::shouldReceive('commit');
-        DB::shouldReceive('rollBack');
-
-        // モック定義
-        $this->eventRepo->shouldReceive('findById')->once()->andReturn(
-            new \App\Domain\Models\Event\Event(
-                new \App\Domain\Models\Event\EventUserId(123),
-                new \App\Domain\Models\Event\EventName('旧イベント名'),
-                new \App\Domain\Models\Event\EventDate('2025-04-20 10:00'),
-                new \App\Domain\Models\Event\EventImpression('旧インプレッション'),
-                new \App\Domain\Models\Event\EventId(999)
-            )
+        //旧テストデータ
+        $eventId = new EventId(1);
+        $existingEvent = new Event(
+            new EventUserId(123),
+            new EventName('旧イベント'),
+            new EventDate('2025-06-10 10:00'),
+            new EventEndDate('2025-06-10 11:00'),
+            new EventMemo('旧メモ'),            
+            new EventImpression('旧感想'),
+            new GoogleEventId(''), // Google連携なし
+            $eventId
         );
+
+        $this->eventRepo->shouldReceive('findById')
+            ->once()
+            ->withArgs(function ($arg) {
+                return $arg instanceof EventId && $arg->getValue() === 1;
+            })
+            ->andReturn($existingEvent);
 
         $this->eventRepo->shouldReceive('update')->once();
-        
-        $this->alertRepo->shouldReceive('deleteByEventId')->once();
-        
-        $this->alertRepo->shouldReceive('create')->once();
-        
-        $this->tagRepo->shouldReceive('firstOrCreate')->once()->andReturn(
-            new \App\Domain\Models\Tag\TagId(1)
-        );
+
+        $this->alertIntervalRepo->shouldReceive('deleteByEventId')
+            ->once()
+            ->withArgs(function ($arg) {
+                return $arg instanceof EventId && $arg->getValue() === 1;
+            });
+
+        $this->alertIntervalRepo->shouldReceive('create')->twice();
+
+        $this->tagRepo->shouldReceive('firstOrCreate')->andReturn(new TagId(5));
         $this->eventRepo->shouldReceive('attachTags')->once();
-    
-        // Act
-        $this->eventService->updateEvent($data);
-    
-        // Assert
-        $this->assertTrue(true); // 例外が出なければ成功
+
+        // テストデータ（更新内容）
+        $data = [
+            'id' => 1,
+            'user_id' => 123,
+            'name' => '更新イベント',
+            'event_date' => '2025-06-20 15:00',
+            'event_end_date' => '2025-06-20 16:00',
+            'memo' => '更新メモ',
+            'impression' => '更新感想',
+            'alert_intervals' => [
+                ['minute_before_event' => 30],
+                ['minute_before_event' => 10],
+            ],
+            'tag_ids' => [3, 4],
+            'new_tag_name' => ['仕事']
+        ];
+
+        $updated = $this->eventService->updateEvent($data);
+
+        $this->assertInstanceOf(Event::class, $updated);
+        $this->assertEquals('更新イベント', $updated->getEventName()->getValue());
+        $this->assertEquals('更新感想', $updated->getEventImpression()->getValue());
     }
-    
-    public function test_delete_event_成功する()
+
+    public function testUpdateEventRollbackOnException()
     {
-    
-        // DBトランザクションのモック
-        DB::shouldReceive('beginTransaction');
-        DB::shouldReceive('commit');
-        DB::shouldReceive('rollBack');
-    
-        $this->eventRepo->shouldReceive('findById')->once()->andReturn(
-            new \App\Domain\Models\Event\Event(
-                new \App\Domain\Models\Event\EventUserId(123),
-                new \App\Domain\Models\Event\EventName('旧イベント名'),
-                new \App\Domain\Models\Event\EventDate('2025-04-20 10:00'),
-                new \App\Domain\Models\Event\EventImpression('旧インプレッション'),
-                new \App\Domain\Models\Event\EventId(999)
-            )
+        DB::shouldReceive('beginTransaction')->once();
+        DB::shouldReceive('rollBack')->once();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->eventRepo->shouldReceive('findById')
+            ->once()
+            ->withArgs(function ($arg) {
+                return $arg instanceof EventId && $arg->getValue() === 1;
+            })
+            ->andReturn(new Event(
+                new EventUserId(123),
+                new EventName('旧イベント'),
+                new EventDate('2025-06-10 10:00'),
+                new EventEndDate('2025-06-10 11:00'),
+                new EventMemo('旧メモ'),    
+                new EventImpression('旧感想'),
+                new GoogleEventId(''),
+                new EventId(1)
+            ));
+
+        // 不正データ（EventNameがバリデーションエラー）
+        $data = [
+            'id' => 1,
+            'user_id' => 123,
+            'name' => str_repeat('あ', 100), // ← InvalidArgumentExceptionを発生させる
+            'event_date' => '2025-06-20 15:00',
+            'event_end_date' => '2025-06-20 16:00',
+            'memo' => '更新メモ',
+            'impression' => '更新感想',
+            'alert_intervals' => [],
+            'tag_ids' => [],
+            'new_tag_name' => [],
+        ];
+
+        $this->eventService->updateEvent($data);
+    }
+
+    public function testSyncWithGoogleCalendarCreatesAndSavesGoogleEventId()
+    {
+        $user = new User([
+            'google_access_token' => 'dummy_token',
+            'google_refresh_token' => 'dummy_refresh',
+        ]);
+
+        $eventId = new EventId(1);
+        $event = new Event(
+            new EventUserId(123),
+            new EventName('Google連携イベント'),
+            new EventDate('2025-06-30 10:00'),
+            new EventEndDate('2025-06-30 11:00'),
+            new EventMemo('Google同期テスト'),            
+            new EventImpression('Google同期できた'),
+            new GoogleEventId(''), // 空 → createEvent()
+            $eventId
         );
-    
-        // 各リポジトリ呼び出しをモック
-        $this->alertRepo->shouldReceive('deleteByEventId')->once();
+
+        $this->googleApi->shouldReceive('createEvent')
+            ->once()
+            ->andReturn('s772kpn3nokcs896kbaio1ui1g');
+
+        $this->eventRepo->shouldReceive('updateGoogleEventId')
+            ->once()
+            ->with($eventId, 's772kpn3nokcs896kbaio1ui1g');
+
+        $this->eventService->syncWithGoogleCalendar($user, $event, true);
+    }
+
+    public function testUpdateEventDisableGoogleSyncDeletesFromGoogleCalendar()
+    {
+        Auth::shouldReceive('id')->andReturn(123);
+
+        $eventId = new EventId(1);
+        $googleEventId = new GoogleEventId('s772kpn3nokcs896kbaio1ui1g');
+
+        //旧データ
+        $existingEvent = new Event(
+            new EventUserId(123),
+            new EventName('旧イベント'),
+            new EventDate('2025-06-10 10:00'),
+            new EventEndDate('2025-06-10 11:00'),
+            new EventMemo('旧メモ'),
+            new EventImpression('旧感想'),
+            $googleEventId,
+            $eventId
+        );
+
+        $this->eventRepo->shouldReceive('findById')
+            ->once()
+            ->withArgs(fn($arg) => $arg instanceof EventId && $arg->getValue() === 1)
+            ->andReturn($existingEvent);
+
+        $this->eventRepo->shouldReceive('update')->once();
+
+        $this->alertIntervalRepo->shouldReceive('deleteByEventId')->once();
+        $this->alertIntervalRepo->shouldReceive('create')->twice();
+
+        $this->tagRepo->shouldReceive('firstOrCreate')->andReturn(new TagId(5));
+        $this->eventRepo->shouldReceive('attachTags')->once();
+
+        // Google連携オフ時 → 削除されること
+        $this->googleApi->shouldReceive('deleteEvent')
+            ->once()
+            ->with(Mockery::type(User::class), 's772kpn3nokcs896kbaio1ui1g');
+
+        // GoogleEventId を null に更新
+        $this->eventRepo->shouldReceive('updateGoogleEventId')
+            ->once()
+            ->with(
+                Mockery::on(fn($arg) => $arg instanceof EventId && $arg->getValue() === 1),
+                null
+            );
+
+        // テストデータ（更新内容）
+        $data = [
+            'id' => 1,
+            'user_id' => 123,
+            'name' => '更新イベント',
+            'event_date' => '2025-06-20 15:00',
+            'event_end_date' => '2025-06-20 16:00',
+            'memo' => '更新メモ',
+            'impression' => '更新感想',
+            'alert_intervals' => [
+                ['minute_before_event' => 30],
+                ['minute_before_event' => 10],
+            ],
+            'tag_ids' => [3, 4],
+            'new_tag_name' => ['仕事']
+        ];
+
+        $updatedEvent = $this->eventService->updateEvent($data);
+
+        // Google同期フラグ false → 削除
+        $this->eventService->syncWithGoogleCalendar(new User(), $updatedEvent, false);
+
+        $this->assertInstanceOf(Event::class, $updatedEvent);
+    }
+
+    public function testDeleteEventAlsoDeletesFromGoogleCalendar()
+    {
+        $eventId = new EventId(1);
+        $googleEventId = new GoogleEventId('s772kpn3nokcs896kbaio1ui1g');
+
+        $event = new Event(
+            new EventUserId(123),
+            new EventName('削除対象イベント'),
+            new EventDate('2025-06-30 10:00'),
+            new EventEndDate('2025-06-30 11:00'),
+            new EventMemo('削除前のメモ'),            
+            new EventImpression('削除前の感想'),
+            $googleEventId,
+            $eventId
+        );
+
+        $this->eventRepo->shouldReceive('findById')
+            ->once()
+            ->withArgs(fn($arg) => $arg instanceof EventId && $arg->getValue() === 1)
+            ->andReturn($event);
+
+        $this->googleApi->shouldReceive('deleteEvent')
+            ->once()
+            ->with(Mockery::type(User::class), 's772kpn3nokcs896kbaio1ui1g');
+
+        $this->alertIntervalRepo->shouldReceive('deleteByEventId')->once();
         $this->eventRepo->shouldReceive('detachTags')->once();
-        $this->eventRepo->shouldReceive('delete')->once()->andReturn(true);
-    
-        // Act
-        $result = $this->eventService->deleteEvent(123);
-    
-        // Assert
-        $this->assertTrue($result);
-    }    
+
+        $this->eventRepo->shouldReceive('delete')
+            ->once()
+            ->withArgs(fn($arg) => $arg instanceof EventId && $arg->getValue() === 1);
+
+        // ユーザー情報（トークンなど）
+        $user = new User([
+            'google_access_token' => 'token',
+            'google_refresh_token' => 'refresh',
+        ]);
+
+        $this->eventService->deleteFromGoogleCalendar($user, $event);
+        $this->eventService->deleteEvent($eventId->getValue());
+    }
 
     protected function tearDown(): void
     {

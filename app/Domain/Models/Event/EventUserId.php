@@ -6,17 +6,17 @@ use App\Domain\Utility\Validator\NumberValidator;
 
 class EventUserId
 {
-    private int $user_id;
+    private int $userId;
 
-    public function __construct($user_id)
+    public function __construct($userId)
     {
-        $this->user_id = NumberValidator::validateNumber($user_id, [
+        $this->userId = NumberValidator::validateNumber($userId, [
             'label' => 'イベントユーザーID',
         ]);
     }
 
     public function getValue(): int
     {
-        return $this->user_id;
+        return $this->userId;
     }
 }

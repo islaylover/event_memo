@@ -11,10 +11,10 @@ use Carbon\Carbon;
 interface AlertIntervalRepositoryInterface
 {
     public function getAll() :array;
-    public function findById(AlertIntervalId $alert_interval_id): ?AlertInterval;
+    public function findById(AlertIntervalId $alertIntervalId): ?AlertInterval;
     public function create(AlertInterval $event): bool;
     public function update(AlertInterval $event):bool;
-    public function delete(AlertIntervalId $alert_interval_id) :bool;
+    public function delete(AlertIntervalId $alertIntervalId) :bool;
     public function deleteByEventId(EventId $id): bool;
     public function findAlertsForNotification(Carbon $now): Collection;
 }

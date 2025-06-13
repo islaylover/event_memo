@@ -10,6 +10,7 @@ Laravel 8（PHP 7.4） + Vue 2（2.7.x） + MySQL 構成で、クリーンアー
 - DTOによるデータ伝達
 - SendGridを用いたイベント前通知メール送信バッチ
 - Google OAuth（Laravel Socialite）による認証機能
+- Google Calendar API連携によるイベント同期機能
 - PHPUnitによるテストコード
 
 ---
@@ -21,6 +22,8 @@ Laravel 8（PHP 7.4） + Vue 2（2.7.x） + MySQL 構成で、クリーンアー
 - Webサーバ（nginx / Apache）
 - Node.js（v16推奨）
 - SendGrid（またはPostfix/Sendmail等、メール送信が可能なMTA）
+- Google OAuth 設定
+- Google Calendar API有効化
 
 ---
 
@@ -47,6 +50,13 @@ php artisan reminders:send
 
 定期実行には以下のような crontab 登録が必要です：
 * * * * * cd /path/to/project && php artisan reminders:send >> /dev/null 2>&1
+
+### 🔧 必要なGoogle API設定
+
+Google Cloud Console にてプロジェクト作成
+OAuth同意画面を作成
+OAuth 2.0 クライアントID＆クライアントシークレットを発行
+Calendar API を有効化
 
 
 ### 🔐  Google OAuth 認証設定

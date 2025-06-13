@@ -9,17 +9,17 @@ use App\Domain\Models\AlertInterval\AlertIntervalMinuteBeforeEvent;
 class AlertInterval
 {
     private ?AlertIntervalId $id = null;
-    private EventId $event_id;
-    private AlertIntervalMinuteBeforeEvent $minute_before_event;
+    private EventId $eventId;
+    private AlertIntervalMinuteBeforeEvent $minuteBeforeEvent;
 
     public function __construct(
-        EventId $event_id,
-        AlertIntervalMinuteBeforeEvent $minute_before_event,
+        EventId $eventId,
+        AlertIntervalMinuteBeforeEvent $minuteBeforeEvent,
         ?AlertIntervalId $id = null
     ) {
         $this->id = $id;
-        $this->event_id = $event_id;
-        $this->minute_before_event = $minute_before_event;
+        $this->eventId = $eventId;
+        $this->minuteBeforeEvent = $minuteBeforeEvent;
     }
 
     public function getId(): AlertIntervalId
@@ -29,11 +29,11 @@ class AlertInterval
 
     public function getEventId(): EventId
     {
-        return $this->event_id;
+        return $this->eventId;
     }
 
     public function getAlertIntervalMinuteBeforeEvent(): AlertIntervalMinuteBeforeEvent
     {
-        return $this->minute_before_event;
+        return $this->minuteBeforeEvent;
     }
 }

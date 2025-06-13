@@ -13,30 +13,30 @@ use Illuminate\Support\Facades\Auth;
 
 class EventController extends Controller
 {
-    protected EventService $EventService;
+    protected EventService $eventService;
 
-    public function __construct(EventService $EventService)
+    public function __construct(EventService $eventService)
     {
-        $this->EventService = $EventService;
+        $this->eventService = $eventService;
     }
 
     public function index()
     {
         $eventUserId = new EventUserId(Auth::id());
-        $events = $this->EventService->getAllEventSummaries($eventUserId);
+        $events = $this->eventService->getAllEventSummaries($eventUserId);
         return view('events.index', compact('events'));   
     }
 
     public function create()
     {
-        $tags = $this->EventService->getAllTags(Auth::id()); 
+        $tags = $this->eventService->getAllTags(Auth::id()); 
         return view('events.create', compact('tags'));
     }
 
     public function edit($id)
     {
-        $event = $this->EventService->getEventEditDto($id, Auth::id());
-        $tags = $this->EventService->getAllTags(Auth::id()); 
+        $event = $this->eventService->getEventDetail($id, Auth::id());
+        $tags = $this->eventService->getAllTags(Auth::id()); 
         return view('events.edit', compact('event', 'tags'));
     }
 
@@ -45,7 +45,8 @@ class EventController extends Controller
         try {
             $data = $request->all(); // バリデーションまだならここでOK
             $data['user_id'] = Auth::id();
-            $this->EventService->createEvent($data);
+            $event = $this->eventService->createEvent($data);
+            $this->eventService->syncWithGoogleCalendar(auth()->user(), $event, $request->boolean('sync_to_google'));
             return response()->json(['status' => 'ok']);
         } catch (InvalidArgumentException $e) {
             Log::error("バリデーションエラー: {$e->getMessage()}");
@@ -62,7 +63,8 @@ class EventController extends Controller
             $data = $request->all();
             $data['id'] = $id;
             $data['user_id'] = Auth::id();
-            $this->EventService->updateEvent($data);
+            $event = $this->eventService->updateEvent($data);
+            $this->eventService->syncWithGoogleCalendar(auth()->user(), $event, $request->boolean('sync_to_google'));
             return response()->json(['status' => 'updated']);
         } catch (InvalidArgumentException $e) {
             Log::error("バリデーションエラー: {$e->getMessage()}");
@@ -76,7 +78,10 @@ class EventController extends Controller
     public function destroy($id)
     {
         try {
-            $this->EventService->deleteEvent($id);
+            $event = $this->eventService->getEventById($id);
+            // Google カレンダー連携削除[連携済みの場合]
+            $this->eventService->deleteFromGoogleCalendar(auth()->user(), $event);
+            $this->eventService->deleteEvent($id);
             return redirect()->route('events.index')->with('success', 'イベントを削除しました');
         } catch (Exception $e) {
             Log::error("削除エラー: {$e->getMessage()}");

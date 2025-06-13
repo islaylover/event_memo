@@ -38,5 +38,16 @@ class EventImpressionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         new EventImpression($longName);
     }
-    
+
+    public function test_空文字はnullとして扱われる()
+    {
+        $memo = new EventImpression('');
+        $this->assertNull($memo->getValue());
+    }
+
+    public function test_nullはそのままnullとして扱われる()
+    {
+        $memo = new EventImpression(null);
+        $this->assertNull($memo->getValue());
+    }
 }

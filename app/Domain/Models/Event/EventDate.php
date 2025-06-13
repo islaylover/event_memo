@@ -5,20 +5,29 @@ namespace App\Domain\Models\Event;
 use App\Domain\Utility\Validator\DateValidator;
 use DateTime;
 use Exception;
+use Carbon\Carbon;
 
 class EventDate
 {
-    private DateTime $event_date;
+    private DateTime $eventDate;
 
-    public function __construct($event_date)
+    public function __construct($eventDate)
     {
         // バリデーションとパース
-        $this->event_date = DateValidator::validateDatetime($event_date, 'イベント年月日');
+        $this->eventDate = DateValidator::validateDatetime($eventDate, 'イベント開始日時');
     }
 
     public function getValue(): DateTime
     {
-        return $this->event_date;
+        return $this->eventDate;
+    }
+
+    /**
+     * Carbonインスタンスを返す
+     */
+    public function toCarbon(): Carbon
+    {
+        return Carbon::instance($this->eventDate);
     }
 
 }

@@ -9,16 +9,16 @@ use App\Domain\Models\Tag\TagName;
 class Tag
 {
     private ?TagId $id = null;
-    private TagUserId $user_id;
+    private TagUserId $userId;
     private TagName $name;
 
     public function __construct(
-        TagUserId $user_id,
+        TagUserId $userId,
         TagName $name,
         ?TagId $id = null
     ) {
         $this->id = $id;
-        $this->user_id = $user_id;
+        $this->userId = $userId;
         $this->name = $name;
     }
 
@@ -29,7 +29,7 @@ class Tag
 
     public function getUserId(): ?TagUserId
     {
-        return $this->user_id;
+        return $this->userId;
     }
 
     public function getTagName(): TagName

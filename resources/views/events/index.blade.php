@@ -26,8 +26,17 @@
         <div class="bg-white rounded shadow p-4 mb-4">
             <h3 class="text-xl font-bold">{{ $event->name }}</h3>
             <p class="text-sm text-gray-600">日時: {{ $event->eventDate }}</p>
+            <p class="text-sm text-gray-600">終了日時: {{ $event->eventEndDate }}</p>
+            <p class="text-sm text-gray-600">メモ: {{ $event->memo ?? 'なし' }}</p>
             <p class="text-sm text-gray-600">印象: {{ $event->impression ?? 'なし' }}</p>
-
+            <p class="text-sm text-gray-600">
+                Google連携: 
+                @if ($event->googleEventId)
+                    <span class="text-green-600 font-semibold">済</span>
+                @else
+                    <span class="text-gray-500">未連携</span>
+                @endif
+            </p>
             <p class="mt-2 font-semibold">通知（分前）:</p>
             <ul class="ml-4 list-disc text-sm">
                 @forelse ($event->alertIntervals as $interval)

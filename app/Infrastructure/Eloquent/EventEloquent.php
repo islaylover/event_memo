@@ -15,7 +15,7 @@ class EventEloquent extends Model
     use HasFactory;
 
     protected $table = 'events';
-    protected $fillable = ['user_id', 'name', 'event_date', 'impression'];
+    protected $fillable = ['user_id', 'name', 'event_date', 'event_end_date', 'memo', 'impression', 'google_event_id'];
 
 
     /**
@@ -45,5 +45,6 @@ class EventEloquent extends Model
    
     protected $casts = [
         'event_date' => 'datetime',
+        'event_end_date' => 'datetime',
     ];
 }

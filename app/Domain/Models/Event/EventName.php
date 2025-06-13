@@ -11,7 +11,6 @@ class EventName
 
     public function __construct($name)
     {
-
         $this->name = StringValidator::validate($name, [
             'label' => 'イベント名',
             'max' => 50

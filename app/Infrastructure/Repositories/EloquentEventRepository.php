@@ -2,14 +2,16 @@
 
 namespace App\Infrastructure\Repositories;
 
+use Illuminate\Database\Eloquent\Collection;
 use App\Domain\Models\Event\Event;
 use App\Domain\Models\Event\EventId;
 use App\Domain\Models\Event\EventUserId;
 use App\Domain\Models\Event\EventName;
 use App\Domain\Models\Event\EventDate;
+use App\Domain\Models\Event\EventEndDate;
+use App\Domain\Models\Event\EventMemo;
 use App\Domain\Models\Event\EventImpression;
-use App\Domain\Dto\EventSummaryDto;
-use App\Domain\Dto\EventEditDto;
+use App\Domain\Models\Event\GoogleEventId;
 use App\Domain\Repositories\EventRepositoryInterface;
 use App\Infrastructure\Eloquent\EventEloquent;
 
@@ -23,53 +25,30 @@ class EloquentEventRepository implements EventRepositoryInterface
                 new EventUserId($eloquentEvent->user_id),
                 new EventName($eloquentEvent->name),
                 new EventDate($eloquentEvent->event_date),
+                new EventEndDate($eloquentEvent->event_end_date),
+                new EventMemo($eloquentEvent->memo),
                 new EventImpression($eloquentEvent->impression),
+                new GoogleEventId($eloquentEvent->google_event_id),
                 new EventId($eloquentEvent->id)
-            );
-        })->all();//all() : convert result(collection) to array
-    }
-
-    public function getAllEventSummaries(EventUserId $eventUserId): array
-    {
-        $userId = $eventUserId->getValue();
-        $events = EventEloquent::with(['tags', 'alertIntervals'])
-            ->where('user_id', $userId)
-            ->whereHas('tags', function ($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })
-            ->orderBy('event_date', 'asc')
-            ->get();
-        return $events->map(function ($event) {
-            return new EventSummaryDto(
-                $event->id,
-                $event->name,
-                $event->event_date->format('Y-m-d H:i'),
-                $event->impression ?? '',
-                $event->alertIntervals->pluck('minute_before_event')->toArray(),
-                $event->tags->pluck('name')->toArray()
             );
         })->all();
     }
 
-    public function getEditDtoById(EventId $eventId, EventUserId $eventUserId): EventEditDto
+    public function getAllEventsByUserId(EventUserId $eventUserId): Collection
     {
-        $event = EventEloquent::with(['alertIntervals', 'tags'])
+        $userId = $eventUserId->getValue();
+        return EventEloquent::with(['tags', 'alertIntervals'])
+            ->where('user_id', $userId)
+            ->orderBy('event_date', 'asc')
+            ->get();
+    }
+
+    public function getEventDetail(EventId $eventId, EventUserId $eventUserId): EventEloquent
+    {
+        return EventEloquent::with(['alertIntervals', 'tags'])
             ->where('id', $eventId->getValue())
             ->where('user_id', $eventUserId->getValue())
-            ->whereHas('tags', function ($q) use ($eventUserId) {
-                $q->where('user_id', $eventUserId->getValue());
-            })
             ->firstOrFail();
-        return new EventEditDto(
-            $event->id,
-            $event->name,
-            $event->event_date->format('Y-m-d H:i'),
-            $event->impression ?? '',
-            $event->alertIntervals->map(
-                fn($a) => ['minute_before_event' => $a->minute_before_event]
-            )->toArray(),
-            $event->tags->pluck('id')->toArray()
-        );
     }
 
     public function findById(EventId $id): ?Event
@@ -82,7 +61,10 @@ class EloquentEventRepository implements EventRepositoryInterface
             new EventUserId($eloquentEvent->user_id),
             new EventName($eloquentEvent->name),
             new EventDate($eloquentEvent->event_date),
+            new EventEndDate($eloquentEvent->event_end_date),
+            new EventMemo($eloquentEvent->memo),
             new EventImpression($eloquentEvent->impression),
+            new GoogleEventId($eloquentEvent->google_event_id),
             new EventId($eloquentEvent->id)
         );
     }
@@ -93,6 +75,8 @@ class EloquentEventRepository implements EventRepositoryInterface
         $eloquentEvent->user_id = $Event->getUserId()->getValue();        
         $eloquentEvent->name = $Event->getEventName()->getValue();
         $eloquentEvent->event_date = $Event->getEventDate()->getValue();
+        $eloquentEvent->event_end_date = $Event->getEventEndDate()->getValue();
+        $eloquentEvent->memo = $Event->getEventMemo()->getValue();
         $eloquentEvent->impression = $Event->getEventImpression()->getValue();
         $eloquentEvent->save();
         return new EventId($eloquentEvent->id);
@@ -107,7 +91,10 @@ class EloquentEventRepository implements EventRepositoryInterface
         $eloquentEvent->user_id = $Event->getUserId()->getValue();        
         $eloquentEvent->name = $Event->getEventName()->getValue();
         $eloquentEvent->event_date = $Event->getEventDate()->getValue();
+        $eloquentEvent->event_end_date = $Event->getEventEndDate()->getValue();
+        $eloquentEvent->memo = $Event->getEventMemo()->getValue();
         $eloquentEvent->impression = $Event->getEventImpression()->getValue();
+        $eloquentEvent->google_event_id = $Event->getGoogleEventId()->getValue();
         return $eloquentEvent->save();
     }
 
@@ -129,5 +116,12 @@ class EloquentEventRepository implements EventRepositoryInterface
         if ($eloquentEvent) {
             $eloquentEvent->tags()->detach(); // 中間テーブル削除
         }
-    }   
+    }
+
+    public function updateGoogleEventId(EventId $eventId, ?string $googleEventId): void
+    {
+        $event = EventEloquent::findOrFail($eventId->getValue());
+        $event->google_event_id = $googleEventId;
+        $event->save();
+    }
 }

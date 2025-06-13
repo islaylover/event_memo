@@ -6,17 +6,17 @@ use App\Domain\Utility\Validator\NumberValidator;
 
 class AlertIntervalMinuteBeforeEvent
 {
-    private int $minute_before_event;
+    private int $minuteBeforeEvent;
 
-    public function __construct($minute_before_event)
+    public function __construct($minuteBeforeEvent)
     {
-        $this->minute_before_event = NumberValidator::validateNumber($minute_before_event, [
+        $this->minuteBeforeEvent = NumberValidator::validateNumber($minuteBeforeEvent, [
             'label' => '告知メール間隔分',
         ]);
     }
 
     public function getValue(): int
     {
-        return $this->minute_before_event;
+        return $this->minuteBeforeEvent;
     }
 }

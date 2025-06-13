@@ -47,7 +47,7 @@ class SendEventReminders extends Command
       $notifications = $this->EventService->getAlertNotifications($now);
 
       foreach ($notifications as $dto) {
-        Mail::to($dto->user_email)->send(new EventReminderMail($dto));
+        Mail::to($dto->userEmail)->send(new EventReminderMail($dto));
       }
       $this->info('Sent reminders.');
     }

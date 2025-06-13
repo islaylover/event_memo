@@ -27,7 +27,7 @@ class EventReminderMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('【リマインダー】イベント「'.$this->dto->event_name.'」')
+        return $this->subject('【リマインダー】イベント「'.$this->dto->eventName.'」')
             ->view('emails.event_reminder')
             ->with(['dto' => $this->dto]);
     }

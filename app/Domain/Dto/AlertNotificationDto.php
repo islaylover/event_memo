@@ -2,31 +2,42 @@
 
 namespace App\Domain\Dto;
 
+use App\Domain\Traits\FormatsDate;
+
 class AlertNotificationDto
 {
-    public int $event_id;
-    public string $event_name;
-    public string $event_date;
-    public string $user_name;
-    public string $user_email;
-    public int $minute_before_event;
+
+    use FormatsDate;
+
+    public int $eventId;
+    public string $eventName;
+    public string $eventDate;
+    public ?string $eventEndDate;
+    public ?string $memo;
+    public string $userName;
+    public string $userEmail;
+    public int $minuteBeforeEvent;
     public array $tags;
 
     public function __construct(
-        int $event_id,
-        string $event_name,
-        string $event_date,
-        string $user_name,
-        string $user_email,
-        int $minute_before_event,
+        int $eventId,
+        string $eventName,
+        string $eventDate,
+        ?string $eventEndDate,
+        ?string $memo,
+        string $userName,
+        string $userEmail,
+        int $minuteBeforeEvent,
         array $tags = []
     ) {
-        $this->event_id = $event_id;
-        $this->event_name = $event_name;
-        $this->event_date = $event_date;
-        $this->user_name = $user_name;
-        $this->user_email = $user_email;
-        $this->minute_before_event = $minute_before_event;
+        $this->eventId = $eventId;
+        $this->eventName = $eventName;
+        $this->eventDate = $this->formatDate($eventDate);
+        $this->eventEndDate = $this->formatDate($eventEndDate);
+        $this->memo = $memo;
+        $this->userName = $userName;
+        $this->userEmail = $userEmail;
+        $this->minuteBeforeEvent = $minuteBeforeEvent;
         $this->tags = $tags;
     }
 }

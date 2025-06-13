@@ -18,7 +18,7 @@ class EloquentTagRepository implements TagRepositoryInterface
 
     public function firstOrCreate(Tag $tag): TagId
     {
-        $tag = TagEloquent::firstOrCreate(['name' => $tag->getTagName()->getValue(), 'user_id' => $tag->getUserId()->getValue()]);
+        $tag = TagEloquent::firstOrCreate(['name' => $tag->getTagName(), 'user_id' => $tag->getUserId()->getValue()]);
         return new TagId($tag->id);
     }
 }
