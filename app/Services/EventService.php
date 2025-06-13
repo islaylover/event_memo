@@ -23,8 +23,9 @@ use App\Domain\Dto\AlertNotificationDto;
 use App\Domain\Models\Tag\Tag;
 use App\Domain\Models\Tag\TagUserId;
 use App\Domain\Models\Tag\TagName;
-use App\Domain\Services\TagDomainService;
 use App\Domain\Services\AlertIntervalDomainService;
+use App\Domain\Services\EventDomainService;
+use App\Domain\Services\TagDomainService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -97,6 +98,7 @@ class EventService
                 new EventImpression($data['impression']),
                 new GoogleEventId('')
             );
+            EventDomainService::validateEventDateRange($Event);
             $eventId = $this->EventRepository->create($Event);
             // IDをセットして返却用Eventを完成させる
             $Event->setId($eventId);
@@ -151,6 +153,7 @@ class EventService
                 $existingEvent->getGoogleEventId(),
                 new EventId($data['id'])
             );
+            EventDomainService::validateEventDateRange($Event);
             $this->EventRepository->update($Event);
             $eventId = new EventId($data['id']);
             $this->AlertIntervalRepository->deleteByEventId($eventId);
