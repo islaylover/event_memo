@@ -29,7 +29,7 @@ class EventDomainServiceTest extends TestCase
         );
 
         EventDomainService::validateEventDateRange($event);
-        $this->assertTrue(true); // 例外が発生しなければOK
+        $this->assertTrue(true);
     }
 
     public function test_開始日時が終了日時より後なら例外が発生する()
